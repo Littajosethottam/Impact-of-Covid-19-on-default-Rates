@@ -1,0 +1,422 @@
+---
+title: "Impact of Company Age, Industry and Covid-19 on Default Rates"
+author: "Ditto Davis, Litta Jose Thottam, Nikhitha Babu"
+date: "`r Sys.Date()`"
+output: 
+  rmdformats::downcute:
+    theme: "cerulean"
+---
+## Introduction
+
+The global economy has faced severe challenges due to the COVID-19 pandemic, resulting in increased default rates among companies across various sectors. Identifying the factors influencing these defaults is essential for recovery efforts.
+
+This study examines the impact of company age, industry, and the COVID-19 pandemic on default rates. By analyzing these variables, we aim to uncover patterns that can inform strategies to mitigate risks and support struggling businesses.
+
+Comparing defaulted and non-defaulted companies across different industries can identify high-risk sectors and recognize potential systemic risks. This analysis can reveal industry-specific factors that lead to financial distress, helping investors and regulators adopt appropriate risk management strategies.
+
+The age of a company significantly influences its financial stability. Analyzing default rates by company age helps identify when companies are most vulnerable to default.
+
+Studying default rates before and during the pandemic provides insights into company and industry resilience, aiding policymakers and business leaders in developing recovery strategies.
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(readr)
+library(readxl)
+library(kableExtra)
+
+# Load your data
+company_data <- read_csv("company_default_GER.csv")
+industry_code <- read_excel("C:/Users/litta/OneDrive/Documents/ic.xlsx")
+
+# Clean column names in industry_code
+colnames(industry_code) <- gsub("[\r\n]", "", colnames(industry_code))
+colnames(industry_code) <- trimws(colnames(industry_code))
+
+# Rename columns for easier access
+colnames(industry_code) <- c("IndustryCode", "IndustryDescription")
+
+# Perform the left join
+company_data <- company_data %>%
+  left_join(industry_code, by = c("IndustryCode" = "IndustryCode"))
+
+# Convert Date column to Date type (assuming the format is dd/mm/yyyy)
+company_data$Date <- as.Date(company_data$Date, format = "%d/%m/%Y")
+
+# Create a COVID period column
+company_data <- company_data %>%
+  mutate(COVID_Period = ifelse(Date >= as.Date("2019-01-01"), "During COVID","Pre-COVID"))
+
+# Map industry codes to new categories with descriptive names
+company_data <- company_data %>%
+  mutate(IndustryDescription = case_when(
+    IndustryCode >= 1000 & IndustryCode <= 3220 ~ "Agriculture",
+    IndustryCode >= 5000 & IndustryCode <= 9900 ~ "Mining",
+    IndustryCode >= 10000 & IndustryCode <= 33200 ~ "Manufacturing",
+    IndustryCode >= 35000 & IndustryCode <= 35300 ~ "Utilities",
+    IndustryCode >= 36000 & IndustryCode <= 39000 ~ "Construction",
+    IndustryCode >= 41000 & IndustryCode <= 43999 ~ "Wholesale Trade",
+    IndustryCode >= 45000 & IndustryCode <= 47999 ~ "Retail Trade",
+    IndustryCode >= 49000 & IndustryCode <= 53200 ~ "Transportation",
+    IndustryCode >= 55000 & IndustryCode <= 56309 ~ "Information",
+    IndustryCode >= 58000 & IndustryCode <= 63990 ~ "Finance",
+    IndustryCode >= 64000 & IndustryCode <= 66300 ~ "Real Estate",
+    IndustryCode >= 68000 & IndustryCode <= 68322 ~ "Professional Services",
+    IndustryCode >= 69000 & IndustryCode <= 75009 ~ "Administrative Services",
+    IndustryCode >= 77000 & IndustryCode <= 82999 ~ "Educational Services",
+    IndustryCode >= 84000 & IndustryCode <= 84300 ~ "Health Care",
+    IndustryCode >= 85000 & IndustryCode <= 85600 ~ "Arts and Entertainment",
+    IndustryCode >= 86000 & IndustryCode <= 88990 ~ "Accommodation and Food Services",
+    IndustryCode >= 90000 & IndustryCode <= 93290 ~ "Public Administration",
+    IndustryCode >= 94000 & IndustryCode <= 96090 ~ "Other Services",
+    IndustryCode >= 97000 & IndustryCode <= 98200 ~ "Public Administration",
+    IndustryCode == 99000 ~ "Other",
+    TRUE ~ "Other"
+  ))
+
+# Count defaults by COVID period and industry description
+default_counts <- company_data %>%
+  group_by(IndustryDescription, COVID_Period, Default) %>%
+  summarise(count = n(), .groups = 'drop')
+
+# Map the Default values to corresponding colors and terms
+default_counts$Default <- factor(default_counts$Default, levels = c(0, 1), labels = c("Non-defaulted", "Defaulted"))
+
+
+```
+
+## Exploratory Data Analysis
+Exploratory Data Analysis (EDA) is a crucial step in understanding the underlying patterns and characteristics of the dataset. It involves summarizing the main features of the data, often using visual methods. The goal of EDA is to discover insights, detect anomalies, and test assumptions through statistical graphics and other data visualization techniques.
+
+In this study, the EDA includes several key steps:
+
+1. **Summary Statistics**: We begin by examining the summary statistics of the dataset to understand its structure and the basic distribution of variables.
+```{r echo=TRUE,eval=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+# Display the first few rows of the dataset
+head(company_data)
+
+# Display the structure of the dataset
+str(company_data)
+
+# Generate summary statistics for the dataset
+summary(company_data)
+```
+ 2 **Data Preparation**: For our analysis, we focus on two specific datasets: `company_default_GER` and `Industry codes`, which is renamed to `ic` for our project. These datasets are loaded and prepared for analysis.
+Also,we summarized the data set into 9 categories for easy analysis.They are Agriculture, Construction, Manufacturing, Mining, Retail Trade, Transportation, Utilities, Wholesale Trade, and Other.
+
+
+
+```{r echo=TRUE,eval=FALSE, message=FALSE, warning=FALSE, results='hide'}
+# Load your data
+company_data <- read_csv("company_default_GER.csv")
+industry_code <- read_excel("C:/Users/litta/OneDrive/Documents/ic.xlsx")
+
+```
+3. **Industry Analysis**:
+We summarize the number of defaulted and non-defaulted companies across different industries. This helps in identifying which industries have higher default rates.
+
+
+2. **Data Visualization**: We use visual methods to explore the distribution of default statuses among companies (Industry Analysis in step 30. This includes plotting the distribution of defaults to see the proportion of defaulted and non-defaulted companies.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+
+# Summary statistics
+head(company_data)
+
+# Plot distribution of defaults
+ggplot(company_data, aes(x = Default, fill = as.factor(Default))) +
+  geom_bar() +
+  labs(title = "Distribution of Default Status",
+       x = "Default Status",  # Keep x-axis title
+       y = "Count") +
+  scale_fill_manual(values = c("0" = "#2596be", "1" = "#f8766d"),
+                    name = "Default Status", 
+                    labels = c("Non-defaulted", "Defaulted")) +
+  theme_minimal() +
+  theme(axis.text.x = element_blank())  # Remove x-axis text
+
+
+```
+
+### Interpretation Of Graph
+The bar chart visually represents the number of non-defaulted and defaulted companies within the dataset. The chart reveals that an overwhelming majority of companies are non-defaulted, as indicated by the substantial blue bar representing approximately 150,000 companies.
+
+
+### Overview of Non defaulted and defaulted companies
+
+The following table provides an overview of non-defaulted and defaulted companies categorized by industry type. It includes the number of non-defaulted companies, the number of defaulted companies, the total number of companies, and the percentage of defaulted companies within each industry.
+
+```{r As per Industry Type, echo=FALSE, message=FALSE, warning=FALSE}
+library(kableExtra)
+
+# Summarize the data
+summary_table <- company_data %>%
+  group_by(IndustryDescription) %>%
+  summarise(
+    `No of Non-Defaulted Companies` = sum(Default == 0),
+    `No of Defaulted Companies` = sum(Default == 1),
+    `Total Companies` = n(),
+    `% of Defaulted Companies` = (sum(Default == 1) / n()) * 100
+  ) %>%
+  arrange(desc(`% of Defaulted Companies`))
+
+# Format the percentage column
+summary_table <- summary_table %>%
+  mutate(`% of Defaulted Companies` = paste0(round(`% of Defaulted Companies`, 2), "%"))
+
+# Create the table
+kable(summary_table, format = "html", caption = "Summary of Default Rates by Industry") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F) %>%
+  add_header_above(c(" " = 1, "Overview of Non-Defaulted and Defaulted Companies" = 4)) %>%
+  row_spec(0, bold = TRUE)
+```
+### Interpretation of the Table
+
+Based on the provided table, we can deduce that certain industries demonstrate notable resilience and stability, even amidst challenging economic circumstances. For instance, the Construction industry, despite having 1,161 companies, recorded a very low default rate of 0.69%. This suggests a robust performance potentially due to ongoing infrastructure projects and a steady demand for construction services. Similarly, the Utilities sector, with 1,632 companies, also shows exceptional stability with a default rate of only 0.61%, likely due to the essential nature of utility services which ensures consistent demand.
+
+The Agriculture industry, encompassing 19,033 companies, maintains a low default rate of 1.19%. This performance could be attributed to the continuous need for agricultural products and possibly supportive government policies. Additionally, the Manufacturing and Wholesale Trade sectors exhibit similar stability with default rates around 1.15% and 1.13%, respectively, highlighting their capacity to weather economic disruptions perhaps due to diversified product ranges and resilient supply chains.
+
+In contrast, the Transportation industry shows the highest default rate at 2%, indicating a higher vulnerability possibly due to fluctuations in demand and operational challenges during the pandemic. The Mining industry, despite having the highest number of companies (67,832), shows a relatively low default rate of 1.07%, which could be driven by consistent demand for raw materials in technological and industrial applications.
+
+Overall, this analysis underscores the variance in default rates across different sectors, revealing that industries such as Construction, Utilities, Agriculture, Manufacturing, and Wholesale Trade exhibit considerable stability. These insights are valuable for stakeholders to identify which sectors may require additional support and which demonstrate resilience in the face of economic disruptions.
+
+**DATA STORYTELLING**
+Data storytelling is the practice of blending hard data with compelling narratives to convey insights in a way that is both informative and engaging. Here,we try to analyse Impact of company age ,Industry and Covid 19 on Default rates.
+
+## Analysis 1: Impact of Company Age and Industry on Default Likelihood
+The histogram  displays the distribution of company ages for both defaulted and non-defaulted companies. The x-axis represents the company age, while the y-axis shows the number of companies. Non-defaulted companies are represented in blue, and defaulted companies are in red. 
+Key findings:The Majority of companies are Non-defaulted,indicated by blue.On the other hand, the red bar for defaulted companies is significantly shorter, highlighting that only a small fraction of companies have defaulted.Also,all the defaulted companies are young,less than 100 years old,with bar being a little high around middle.So we can deduce that all defaulted companies belongs are young and in between 0-25(HIGHEST IN DEFAULTED)  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Load necessary library
+library(ggplot2)
+
+# Assuming company_data is already loaded and contains the necessary columns
+# If not, load and process your data accordingly
+
+# Convert Default to factor
+company_data$Default <- factor(company_data$Default, levels = c(0, 1), labels = c("Non-Defaulted", "Defaulted"))
+
+# Create a combined histogram for defaulted and non-defaulted companies
+ggplot(company_data, aes(x = CompanyAge, fill = Default)) +
+  geom_histogram(position = "identity", bins = 30, alpha = 0.5) +
+  scale_fill_manual(values = c("Non-Defaulted" = "cyan", "Defaulted" = "red")) +
+  labs(title = "Histogram of Company Age for Defaulted and Non-Defaulted Companies",
+       x = "Company Age",
+       y = "Count",
+       fill = "Default Status") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.text.x = element_text(size = 10),
+    axis.text.y = element_text(size = 10)
+  )
+
+```
+
+## Analysis 2: Default Rates by Industry
+The following graph titled "Default Rates by Industry" illustrates the distribution of non-defaulted (blue) and defaulted (red) companies across various sectors, including Agriculture, Construction, Manufacturing, Mining, Other, Retail Trade, Transportation, Utilities, and Wholesale Trade. The x-axis represents these different industries, while the y-axis indicates the count of companies within each sector.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Plot default rates by industry
+ggplot(default_counts, aes(x = IndustryDescription, y = count, fill = Default)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Default Rates by Industry",
+       x = "Industry",
+       y = "Count") +
+  scale_fill_manual(values = c("Non-defaulted" = "blue", "Defaulted" = "red")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+From this Graph,we can understand that the Mining industry has the highest count of non-defaulted companies, exceeding 40,000, alongside a notable count of defaults. The Retail Trade sector also displays a significant number of non-defaulted companies with a substantial count of defaults. Agriculture shows a high number of non-defaulted companies with relatively fewer defaults. Utilities and Wholesale Trade exhibit a high number of non-defaulted companies and minimal defaults. In contrast, Construction, Manufacturing, Transportation, and Other sectors have lower counts of both non-defaulted and defaulted companies. This graph effectively highlights the varying default rates across industries, indicating that sectors like Mining and Retail Trade have higher numbers of companies with both non-defaulted and defaulted statuses, whereas industries such as Construction and Utilities demonstrate lower default rates, suggesting different risk profiles and financial stability across sectors.
+
+### Defaulted Companies By industries
+In order to further dive into the number of defaulted companies by industries,the following graph is made.
+```{r defaulted-companies-by-industry, echo=FALSE, message=FALSE, warning=FALSE}
+# Filter to include only defaulted companies
+defaulted_data <- company_data %>%
+  filter(Default == 1)
+
+# Print the first few rows to verify
+head(defaulted_data)
+
+# Summarize the number of defaulted companies by industry
+summary_data <- defaulted_data %>%
+  group_by(IndustryDescription) %>%
+  summarize(Count = n(), .groups = 'drop')
+
+# Print the summary data to verify
+print(summary_data)
+
+# Create the bar plot with text labels
+ggplot(summary_data, aes(x = IndustryDescription, y = Count)) +
+  geom_bar(stat = "identity", fill = "lightgreen") +
+  geom_text(aes(label = Count), vjust = -0.5, color = "black") +
+  labs(title = "Defaulted Companies by Industry Type",
+       x = "Industry Code - WZ 2008",
+       y = "Number of Companies") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+The bar chart shows the number of defaulted companies across nine industry types. The highest number of defaulted companies is observed in the Mining with 726 companies, while the lowest is in the Construction industry with 8 companies. Manufacturing and Transportation industries have 29 and  56 defaulted companies, respectively, indicating relatively similar default rates among these sectors.
+
+
+## Analysis 3: Impact of COVID-19 on Default Rates by Industry
+This graph is the summary of Pre covid 19 and During covid 19 default rates across every industry.Since This is a summarised version.Lets analyse further by didviding into into pre covid and During covid,then generating a trend line.
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Plot default rates by industry and COVID period
+ggplot(default_counts, aes(x = COVID_Period, y = count, fill = Default)) +
+  geom_bar(stat = "identity", position = "fill") +
+  facet_wrap(~ IndustryDescription) +
+  labs(title = "Impact of COVID-19 on Default Rates by Industry",
+       x = "TIME PERIOD",
+       y = "Proportion",
+       fill = "Default Status") +
+  scale_fill_manual(values = c("Non-defaulted" = "blue", "Defaulted" = "red")) +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent)
+```
+ **Histogram for Pre-COVID Period**
+
+
+```{r histogram-pre-covid, echo=FALSE, message=FALSE, warning=FALSE}
+# Filter data for Pre-COVID period
+pre_covid_data <- default_counts %>%
+  filter(COVID_Period == "Pre-COVID")
+
+# Create the histogram for Pre-COVID period
+ggplot(pre_covid_data, aes(x = IndustryDescription, y = count, fill = Default)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count), vjust = -0.5, position = position_dodge(0.9)) +
+  labs(title = "Defaulted vs Non-Defaulted Companies Pre-COVID",
+       x = "Industry Description",
+       y = "Number of Companies",
+       fill = "Default Status") +
+  scale_fill_manual(values = c("Non-defaulted" = "blue", "Defaulted" = "red")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+The bar chart titled "Defaulted vs Non-Defaulted Companies Pre-COVID" illustrates the distribution of non-defaulted (blue) and defaulted (red) companies across various industries prior to the COVID-19 pandemic. Key observations indicate that the Mining industry has the highest number of non-defaulted companies at 22,312, with 284 defaults. Retail Trade follows with 10,188 non-defaulted and 135 defaulted companies. The Agriculture sector has 6,269 non-defaulted and 91 defaulted companies. In contrast, Manufacturing has one of the lowest counts with 830 non-defaulted and 12 defaulted companies. The Construction industry has very few defaults (6) compared to its non-defaulted companies (382). Overall, this graph highlights the varying default rates across industries, with Mining and Retail Trade showing the highest non-defaulted counts, while industries like Manufacturing and Construction have relatively fewer defaults, indicating different levels of financial stability and risk profiles pre-COVID.
+
+**Histogram for During-COVID Period**
+
+```{r histogram-covid-period, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+
+# Ensure the Default column is treated as a factor
+default_counts$Default <- as.factor(default_counts$Default)
+default_counts$IndustryDescription <- as.factor(default_counts$IndustryDescription)
+
+# Filter data for During COVID period
+during_covid_data <- default_counts %>%
+  filter(COVID_Period == "During COVID")
+
+# Create the histogram for During COVID period
+ggplot(during_covid_data, aes(x = IndustryDescription, y = count, fill = Default)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = count), vjust = -0.5, position = position_dodge(0.9)) +
+  labs(title = "Defaulted vs Non-Defaulted Companies During COVID",
+       x = "Industry Description",
+       y = "Number of Companies",
+       fill = "Default Status") +
+  scale_fill_manual(values = c("Non-defaulted" = "blue", "Defaulted" = "red")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+ Notably, the Mining industry has the highest number of non-defaulted companies at 44,794, with 442 defaults, followed by Retail Trade with 19,518 non-defaulted and 194 defaulted companies. The Agriculture sector has 12,538 non-defaulted and 135 defaulted companies. In contrast, Manufacturing has 1,667 non-defaulted and 17 defaulted companies, while Construction shows minimal defaults (2) compared to its non-defaulted companies (771). Utilities and Wholesale Trade sectors exhibit relatively lower counts of defaulted companies, with 32 and 7 defaults, respectively.
+
+Comparing pre-COVID data to during-COVID data reveals significant impacts of the pandemic on different industries. Most industries saw an increase in non-defaulted companies, accompanied by a rise in defaults, indicating mixed effects. Mining, Retail Trade, and Wholesale Trade experienced substantial growth in non-defaulted companies but also a notable increase in defaults, suggesting increased business activity with heightened financial risks. Conversely, Construction and Utilities demonstrated stability, with low increases in defaults despite the pandemic, indicating resilience. Overall, while the pandemic drove growth in several industries, it also introduced significant financial challenges, leading to higher default rates in many sectors.
+
+# Trend Line Analysis
+The trend analysis shows:
+X-Axis (Period): Divided into two segments - "Pre-COVID" and "During COVID."
+	Y-Axis: Count of number of defaulted companies.
+
+Key observations from the graph indicate that the Mining industry (Dark Green line) experienced the most significant increase in the proportion of defaults during the COVID-19 period. Other industries, such as Retail (light blue line), Wholesale Trade (Pink line), and Agriculture (Red line), also show an increase in the proportion of defaulted companies, though to a lesser extent. Conversely, the Utilities industry (Purple line) and Transportation  (dark Blue line) demonstrated stability or even a slight decrease in defaults during the pandemic.
+
+
+```{r , echo=FALSE, message=FALSE, warning=FALSE}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Summarize data to calculate the number of defaulted companies for each industry over time
+summary_during_covid <- company_data %>%
+  filter(COVID_Period == "During COVID", Default == 1) %>%
+  group_by(IndustryDescription) %>%
+  summarize(count = n(), .groups = 'drop') %>%
+  mutate(Period = "During COVID")
+
+summary_pre_covid <- company_data %>%
+  filter(COVID_Period == "Pre-COVID", Default == 1) %>%
+  group_by(IndustryDescription) %>%
+  summarize(count = n(), .groups = 'drop') %>%
+  mutate(Period = "Pre-COVID")
+
+# Combine the summaries
+trend_data <- bind_rows(summary_during_covid, summary_pre_covid)
+
+# Ensure the Period variable is a factor with the correct order
+trend_data$Period <- factor(trend_data$Period, levels = c("Pre-COVID", "During COVID"))
+
+# Plot trend lines for each industry
+ggplot(trend_data, aes(x = Period, y = count, group = IndustryDescription, color = IndustryDescription)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Trend of Defaulted Companies by Industry",
+       x = "Period",
+       y = "Number of Defaulted Companies",
+       color = "Industry") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+```
+
+
+# Conclusion
+
+### Major Findings
+
+The analysis of default rates across various industries during the pre-COVID and during COVID periods reveals several key insights:
+
+1. **Impact of Company Age on Default Rates**:
+   - Younger companies (ages 0-100) showed a higher frequency of defaults, indicating a greater financial vulnerability,with highest between 0 and 25.
+   - Older companies (ages 100+) demonstrated greater stability with fewer defaults, suggesting that established firms are better equipped to withstand economic shocks.
+
+2. **Industry-Specific Default Rates**:
+   - The Mining industry consistently had the highest number of non-defaulted companies, both pre-COVID (22,312) and during COVID (44,794). However, it also saw a rise in defaults from 284 pre-COVID to 442 during COVID.
+   - Retail Trade and Agriculture sectors also displayed significant non-defaulted counts but experienced increases in defaults during the pandemic.
+   - Construction and Utilities sectors showed remarkable stability with minimal changes in default rates, indicating resilience.
+
+3. **Impact of COVID-19**:
+   - Most industries saw an increase in non-defaulted companies during COVID, accompanied by a rise in defaults, suggesting mixed effects of the pandemic.
+   - The Mining  industry experienced the most significant increase in the proportion of defaults during COVID, highlighting severe financial stress in this sector.
+   - Conversely, industries such as displayed resilience with minimal changes in default rates, indicating relative stability amidst the economic disruptions caused by the pandemic.
+
+### Final Statement
+
+This study highlights the varying impact of company age, industry, and the COVID-19 pandemic on default rates. Younger companies and certain industries, particularly Mining, were more vulnerable to defaults during the pandemic.Construction,Mining.wholesale,retail etc also were imoacted by COVID. In contrast, older companies and industries such as Transportation and Utilities etc demonstrated greater financial stability. But it should also be noted that the companies of mining industries are huge compared to industries like Transportation.
+These insights are crucial for policymakers, investors, and business leaders in formulating strategies to mitigate risks and support businesses in distress, ultimately enhancing the resilience of the global economy in the face of future disruptions.
